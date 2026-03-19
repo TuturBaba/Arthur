@@ -1,28 +1,26 @@
-FROM mambaorg/micromamba:1.5.8
+FROM pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
 
-ENV MAMBA_DOCKERFILE_ACTIVATE=1
-ENV PYTHONNOUSERSITE=1
-ENV YOLO_CONFIG_DIR=/tmp/Ultralytics
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
+    MKL_THREADING_LAYER=GNU \
+    OMP_NUM_THREADS=1 \
+    TF_CPP_MIN_LOG_LEVEL=3 
 
-# Crée l'env conda
-RUN micromamba create -y -n galaxy \
-    python=3.12 \
-    ultralytics==8.4.9 \
-    pytorch=2.9.1 \
-    torchvision=0.24.0 \
-    pycocotools=2.0.11 \
-    timm=1.0.24 \
-    -c pytorch \
-    -c conda-forge
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc git zip unzip wget curl htop libgl1 libglib2.0-0 libpython3-dev gnupg libsm6 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Forcer l'exécution DANS l'env galaxy
-SHELL ["micromamba", "run", "-n", "galaxy", "/bin/bash", "-c"]
+RUN apt upgrade --no-install-recommends -y openssl tar
 
-RUN micromamba install -y \
-    git \
-    -c conda-forge
+WORKDIR /ultralytics
+RUN git clone https://github.com/ultralytics/ultralytics .
+
+RUN pip install -e .
+
+RUN pip install numpy==1.26.4 scikit-image==0.25.0 collection termcolor scikit-learn==1.6.1 \
+    && pip install pycocotools==2.0.11 timm==1.0.24 
 
 RUN pip install git+https://github.com/ultralytics/CLIP.git
-
-ENTRYPOINT ["micromamba", "run", "-n", "galaxy"]
-CMD ["bash"]
